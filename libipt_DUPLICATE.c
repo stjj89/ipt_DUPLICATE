@@ -47,7 +47,7 @@ static int DUPLICATE_parse(int c, char **argv, int invert, unsigned int *flags,
         if (val < 1)
             xtables_error(PARAMETER_PROBLEM,
                    "Argument passed to --times cannot be less than 1");
-        duplicate->at_byte = val;
+        duplicate->times = val;
         return 1;
     default:
         /* Fall through */

@@ -18,6 +18,7 @@
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>
+#include <linux/netdevice.h>
 #include <net/icmp.h>
 #include <net/ip.h>
 #include <net/tcp.h>
@@ -40,18 +41,30 @@ MODULE_DESCRIPTION("Xtables: packet duplication target for IPv4");
 static unsigned int
 duplicate_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
+    int i;
     struct sk_buff *copied_skb;
-    struct iphdr *iph = ip_hdr(skb);
     const struct ipt_duplicate_info *duplicate = par->targinfo;
 
     /* Duplicate packet */
-    for (int i = 0; i < duplicate->times; i++) {
+    for (i = 0; i < duplicate->times; i++)
+    {
         copied_skb = skb_copy(skb, GFP_ATOMIC);
-        
+
         // If ladder calling the right IP Architecture function calls
         // to send the cloned skb the right way
+
+        if ( NF_INET_FORWARD == par->hooknum ) {
+            if ( ip_output(copied_skb) ) {
+                printk("duplicate_tg: ERROR ip_output returned with error\n");
+            }
+        } else if ( NF_INET_POST_ROUTING == par->hooknum ) {
+            if ( dev_queue_xmit(copied_skb) ) {
+                printk("duplicate_tg: ERROR dev_queue_xmit returned with error\n");
+            }
+        } else { /* Should not happen */
+            printk("duplicate_tg: ERROR packet received from unsupported hook\n");
+        }
     }
-    
 
     return XT_CONTINUE;  
 }
@@ -62,9 +75,7 @@ static struct xt_target duplicate_tg_reg __read_mostly = {
     .target     = duplicate_tg,
     .targetsize = sizeof(struct ipt_duplicate_info),
     .table      = "mangle",
-    .hooks      =   (1 << NF_INET_PRE_ROUTING) |
-                    (1 << NF_INET_FORWARD) |
-                    (1 << NF_INET_LOCAL_OUT) |
+    .hooks      =   (1 << NF_INET_FORWARD) |
                     (1 << NF_INET_POST_ROUTING),
     .me         = THIS_MODULE,
 };
