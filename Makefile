@@ -13,6 +13,8 @@ install: libipt_DUPLICATE.so ipt_DUPLICATE.ko
 	depmod -a
 	modprobe ipt_DUPLICATE
 	rm -rf /lib/modules/`uname -r`/ipt_DUPLICATE.ko
+uninstall:
+	modprobe -r ipt_DUPLICATE
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 modules_install:

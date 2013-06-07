@@ -41,31 +41,42 @@ MODULE_DESCRIPTION("Xtables: packet duplication target for IPv4");
 static unsigned int
 duplicate_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-    int i;
+    printk("duplicate_tg: Entering...\n");
+    int i, ret;
     struct sk_buff *copied_skb;
     const struct ipt_duplicate_info *duplicate = par->targinfo;
 
-    /* Duplicate packet */
     for (i = 0; i < duplicate->times; i++)
     {
+        /* Duplicate packet */
         copied_skb = skb_copy(skb, GFP_ATOMIC);
+        if ( NULL == copied_skb ) {
+            printk("duplicate_tg: ERROR skb_copy failed\n");
+            return XT_CONTINUE;
+        }
 
         // If ladder calling the right IP Architecture function calls
         // to send the cloned skb the right way
 
         if ( NF_INET_FORWARD == par->hooknum ) {
-            if ( ip_output(copied_skb) ) {
-                printk("duplicate_tg: ERROR ip_output returned with error\n");
-            }
-        } else if ( NF_INET_POST_ROUTING == par->hooknum ) {
-            if ( dev_queue_xmit(copied_skb) ) {
+            printk("duplicate_tg: NF_INET_FOWARD, calling dev_queue_xmit...\n");
+            ret = dev_queue_xmit(copied_skb);
+            if ( ret < 0 ) {
                 printk("duplicate_tg: ERROR dev_queue_xmit returned with error\n");
             }
+            printk("duplicate_tg: dev_queue_xmit returns %d\n", ret);
+        } else if ( NF_INET_POST_ROUTING == par->hooknum ) {
+            printk("duplicate_tg: NF_INET_POST_ROUTING, calling dev_queue_xmit...\n");
+            ret = dev_queue_xmit(copied_skb);
+            if ( ret < 0 ) {
+                printk("duplicate_tg: ERROR dev_queue_xmit returned with error\n");
+            }
+            printk("duplicate_tg: dev_queue_xmit returns %d\n", ret);
         } else { /* Should not happen */
             printk("duplicate_tg: ERROR packet received from unsupported hook\n");
         }
     }
-
+    printk("duplicate_tg: Exiting...\n");
     return XT_CONTINUE;  
 }
 
